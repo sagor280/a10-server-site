@@ -25,6 +25,7 @@ async function run() {
     await client.connect();
     const db = client.db("product-db");
     const productCollection = db.collection("products");
+    const importsCollection = db.collection("imports");
 
 
      // products api
@@ -55,6 +56,27 @@ async function run() {
         result
       })
     });
+
+  
+
+// imports api
+app.post("/imports", async (req, res) => {
+  const data = req.body;
+  const result = await importsCollection.insertOne(data);
+  res.send({ success: true, result });
+});
+
+// product quantity update
+app.patch("/products/:id", async (req, res) => {
+  const { id } = req.params;
+  const update = req.body; 
+  const result = await productCollection.updateOne(
+    { _id: new ObjectId(id) },
+    update
+  );
+  res.send({ success: true, result });
+});
+
 
 
 
