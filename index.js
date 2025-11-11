@@ -1,5 +1,5 @@
 const express = require("express");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
 require('dotenv').config()
 const app = express();
@@ -32,6 +32,18 @@ async function run() {
       const result = await productCollection.find().toArray();
       res.send(result);
     });
+
+
+      app.get('/products/:id',async(req,res)=>{
+      const {id} = req.params
+      console.log(id) //ai id ta string
+       const result = await productCollection.findOne({_id:new ObjectId(id)}) //ata ke amra object banailam karon database e object akare ache
+
+      res.send({
+        success:true,
+        result
+      })
+    })
 
 
     app.post('/products',async (req,res)=>{
