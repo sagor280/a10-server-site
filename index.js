@@ -27,11 +27,23 @@ async function run() {
     const productCollection = db.collection("products");
 
 
-// products api
+     // products api
  app.get("/products", async (req, res) => {
       const result = await productCollection.find().toArray();
       res.send(result);
     });
+
+
+    app.post('/products',async (req,res)=>{
+      const data = req.body
+      // console.log(data)
+      const result = await productCollection.insertOne(data) //database e models post 
+      res.send({
+        success:true,
+        result
+      })
+    });
+
 
 
 
@@ -50,6 +62,7 @@ run().catch(console.dir);
 app.get("/", (req, res) => {
   res.send("server is running!");
 });
+
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
