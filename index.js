@@ -1,7 +1,7 @@
 const express = require("express");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
-require('dotenv').config();
+require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -31,23 +31,35 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/my-products',async(req,res)=>{
-      const email = req.query.email
-      const result = await productCollection.find({created_by:email}).toArray()
-      res.send(result)
-    })
+    app.get("/my-products", async (req, res) => {
+      const email = req.query.email;
+      const result = await productCollection
+        .find({ created_by: email })
+        .toArray();
+      res.send(result);
+    });
+
+    app.get("/my-imports", async (req, res) => {
+      const email = req.query.email;
+      const result = await importsCollection
+        .find({
+          userEmail: email,
+        })
+        .toArray();
+      res.send(result);
+    });
+
+   
 
     // Get product by ID
-    app.get('/products/:id', async (req, res) => {
+    app.get("/products/:id", async (req, res) => {
       const { id } = req.params;
-      const result = await productCollection.findOne({_id: new ObjectId(id)});
+      const result = await productCollection.findOne({ _id: new ObjectId(id) });
       res.send({ success: true, result });
     });
 
-    app.get('/')
-
     // Add new product
-    app.post('/products', async (req, res) => {
+    app.post("/products", async (req, res) => {
       const data = req.body;
       const result = await productCollection.insertOne(data);
       res.send({ success: true, result });
@@ -60,11 +72,10 @@ async function run() {
       res.send({ success: true, result });
     });
 
-
     // Update product quantity
     app.patch("/products/:id", async (req, res) => {
       const { id } = req.params;
-      const update = req.body; 
+      const update = req.body;
       const result = await productCollection.updateOne(
         { _id: new ObjectId(id) },
         update
@@ -73,7 +84,7 @@ async function run() {
     });
 
     // Latest 6 products
-    app.get('/latest-products', async (req, res) => {
+    app.get("/latest-products", async (req, res) => {
       const result = await productCollection
         .find()
         .sort({ createdAt: -1 }) // newest first
@@ -83,7 +94,9 @@ async function run() {
     });
 
     await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
   } finally {
     // await client.close();
   }
