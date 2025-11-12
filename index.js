@@ -31,12 +31,20 @@ async function run() {
       res.send(result);
     });
 
+    app.get('/my-products',async(req,res)=>{
+      const email = req.query.email
+      const result = await productCollection.find({created_by:email}).toArray()
+      res.send(result)
+    })
+
     // Get product by ID
     app.get('/products/:id', async (req, res) => {
       const { id } = req.params;
       const result = await productCollection.findOne({_id: new ObjectId(id)});
       res.send({ success: true, result });
     });
+
+    app.get('/')
 
     // Add new product
     app.post('/products', async (req, res) => {
@@ -51,6 +59,7 @@ async function run() {
       const result = await importsCollection.insertOne(data);
       res.send({ success: true, result });
     });
+
 
     // Update product quantity
     app.patch("/products/:id", async (req, res) => {
