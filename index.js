@@ -1,5 +1,5 @@
 const express = require("express");
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { MongoClient, ServerApiVersion,  ObjectId } = require("mongodb");
 const cors = require("cors");
 require("dotenv").config();
 const app = express();
@@ -80,6 +80,23 @@ async function run() {
       );
       res.send({ success: true, result });
     });
+
+     // Update existing product
+  app.put("/products/:id", async (req, res) => {
+  const { id } = req.params;
+  const data = req.body;
+
+  const filter = { _id: new ObjectId(id) };
+  const update = { $set: data };
+
+  const result = await productCollection.updateOne(filter, update);
+
+  res.send({
+    success: true,
+    result,
+  });
+});
+
 
     // Latest 6 products
     app.get("/latest-products", async (req, res) => {
