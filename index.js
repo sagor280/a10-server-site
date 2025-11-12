@@ -49,8 +49,6 @@ async function run() {
       res.send(result);
     });
 
-   
-
     // Get product by ID
     app.get("/products/:id", async (req, res) => {
       const { id } = req.params;
@@ -91,6 +89,18 @@ async function run() {
         .limit(6)
         .toArray();
       res.send(result);
+    });
+
+    // Delete import by ID
+    app.delete("/imports/:id", async (req, res) => {
+      const { id } = req.params;
+      const result = await importsCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+      res.send({
+        success: true,
+        result,
+      });
     });
 
     await client.db("admin").command({ ping: 1 });
