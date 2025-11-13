@@ -108,6 +108,13 @@ async function run() {
       res.send(result);
     });
 
+    // search product
+    app.get('/search',async(req,res)=>{
+      const search_text =req.query.search
+      const result =await  productCollection.find({name:{$regex:search_text,$options:"i"}}).toArray()
+      res.send(result)
+    })
+
     // Delete import by ID
     app.delete("/imports/:id", async (req, res) => {
       const { id } = req.params;
