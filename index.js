@@ -25,139 +25,97 @@ async function run() {
     const productCollection = db.collection("products");
     const importsCollection = db.collection("imports");
 
-    // Get all products
+    // ১. অল-ইন-ওয়ান প্রোডাক্ট রাউট (Search, Filter, Sort, Pagination)
     app.get("/products", async (req, res) => {
-      const result = await productCollection.find().toArray();
-      res.send(result);
+      try {
+        const {
+          search = "",
+          origin = "",
+          sort = "createdAt-desc",
+          page = 1,
+          limit = 9,
+        } = req.query;
+
+        const query = {};
+        if (search) query.name = { $regex: search, $options: "i" };
+        if (origin) query.origin = origin;
+
+        const [sortField, sortOrder] = sort.split("-");
+        const order = sortOrder === "asc" ? 1 : -1;
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        // Aggregation ব্যবহার করছি যাতে সর্টিং নিখুঁত হয় (বিশেষ করে প্রাইসের ক্ষেত্রে)
+        let pipeline = [{ $match: query }];
+
+        if (sortField === "price") {
+          pipeline.push({
+            $addFields: { priceNumber: { $toDouble: "$price" } }
+          });
+          pipeline.push({ $sort: { priceNumber: order } });
+        } else {
+          pipeline.push({ $sort: { [sortField]: order } });
+        }
+
+        pipeline.push({ $skip: skip });
+        pipeline.push({ $limit: parseInt(limit) });
+
+        const items = await productCollection.aggregate(pipeline).toArray();
+        const totalItems = await productCollection.countDocuments(query);
+
+        res.send({
+          success: true,
+          products: items,
+          totalPages: Math.ceil(totalItems / parseInt(limit)),
+          currentPage: parseInt(page),
+          totalItems
+        });
+      } catch (error) {
+        res.status(500).send({ success: false, message: "Internal server error" });
+      }
     });
 
-    // Get products by user
-    app.get("/my-products", async (req, res) => {
-      const email = req.query.email;
-      const result = await productCollection
-        .find({ created_by: email })
-        .toArray();
-      res.send(result);
+    // ২. অ্যাড প্রোডাক্ট (createdAt যোগ করা হয়েছে সর্টিং এর সুবিধার জন্য)
+    app.post("/products", async (req, res) => {
+      const data = req.body;
+      data.quantity = Number(data.quantity) || 0;
+      data.price = Number(data.price) || 0;
+      data.createdAt = new Date(); // সর্টিং এর জন্য খুবই গুরুত্বপূর্ণ
+
+      const result = await productCollection.insertOne(data);
+      res.send({ success: true, result });
     });
 
-    // Get product by ID
+    // ৩. গেট সিঙ্গেল প্রোডাক্ট
     app.get("/products/:id", async (req, res) => {
       const { id } = req.params;
       const result = await productCollection.findOne({ _id: new ObjectId(id) });
       res.send({ success: true, result });
     });
 
-    // Add new product (safe for price & quantity)
-    app.post("/products", async (req, res) => {
-      const data = req.body;
-      data.quantity = Number(data.quantity) || 0;
-      data.price = Number(data.price) || 0;
-
-      const result = await productCollection.insertOne(data);
-      res.send({ success: true, result });
-    });
-
-    // Update product (PUT)
-    app.put("/products/:id", async (req, res) => {
-      const { id } = req.params;
-      const data = {
-        ...req.body,
-        price: Number(req.body.price) || 0,
-        quantity: Number(req.body.quantity) || 0,
-      };
-
-      const result = await productCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: data }
-      );
-
-      res.send({ success: true, result });
-    });
-
-    // Patch product quantity 
-    app.patch("/products/:id", async (req, res) => {
-      const { id } = req.params;
-      let { quantity } = req.body;
-
-      quantity = Number(quantity); // Convert to number
-      if (isNaN(quantity)) {
-        return res
-          .status(400)
-          .send({ success: false, message: "Quantity must be a number" });
-      }
-
-      const result = await productCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $inc: { quantity } }
-      );
-
-      res.send({ success: true, result });
-    });
-
-    // Delete product
+    // ৪. ডিলিট প্রোডাক্ট
     app.delete("/products/:id", async (req, res) => {
       const { id } = req.params;
-      const result = await productCollection.deleteOne({
-        _id: new ObjectId(id),
-      });
+      const result = await productCollection.deleteOne({ _id: new ObjectId(id) });
       res.send({ success: true, result });
     });
 
-    // Search product
-    app.get("/search", async (req, res) => {
-      const search_text = req.query.search;
-      const result = await productCollection
-        .find({ name: { $regex: search_text, $options: "i" } })
-        .toArray();
-      res.send(result);
-    });
-
-    // Imports collection routes
-    app.get("/my-imports", async (req, res) => {
-      const email = req.query.email;
-      const result = await importsCollection
-        .find({ userEmail: email })
-        .toArray();
-      res.send(result);
-    });
-
+    // ৫. ইমপোর্ট কালেকশন রাউটস
     app.post("/imports", async (req, res) => {
-      const data = req.body;
-      const result = await importsCollection.insertOne(data);
+      const result = await importsCollection.insertOne(req.body);
       res.send({ success: true, result });
     });
 
-    app.delete("/imports/:id", async (req, res) => {
-      const { id } = req.params;
-      const result = await importsCollection.deleteOne({
-        _id: new ObjectId(id),
-      });
-      res.send({ success: true, result });
-    });
-
-    // Latest products
-    app.get("/latest-products", async (req, res) => {
-      const result = await productCollection
-        .find()
-        .sort({ createdAt: -1 })
-        .limit(6)
-        .toArray();
+    app.get("/my-imports", async (req, res) => {
+      const result = await importsCollection.find({ userEmail: req.query.email }).toArray();
       res.send(result);
     });
 
-    await client.db("admin").command({ ping: 1 });
     console.log("MongoDB connected successfully!");
-  } finally {
-    // await client.close();
+  } catch (error) {
+    console.error(error);
   }
 }
 
 run().catch(console.dir);
-
-app.get("/", (req, res) => {
-  res.send("Server is running!");
-});
-
-app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
-});
+app.get("/", (req, res) => res.send("Server is running!"));
+app.listen(port, () => console.log(`Server listening on port ${port}`));
